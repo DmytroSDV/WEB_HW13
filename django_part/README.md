@@ -2,7 +2,7 @@
 ### 1. First:
   - Run postgres docker container with command:
 
-        docker run --name postg_wh10 -d -h localhost -p 5432:5432 -u postgres -e POSTGRES_PASSWORD=1234567 postgres
+        docker run --name postg_wh13_2 -d -h localhost -p 5432:5432 -u postgres -e POSTGRES_PASSWORD=1234567 postgres
   - Make migrations by executing two commands from \hw10\ path
 
         py manage.py makemigrations

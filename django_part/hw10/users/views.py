@@ -7,6 +7,11 @@ from .forms import RegisterForm, LoginForm, ProfileForm, QuoteForm
 
 from quotes.models import Quote, Author, Tag
 
+from django.contrib.auth.views import PasswordResetView
+from django.contrib.messages.views import SuccessMessageMixin
+
+from django.urls import reverse_lazy
+
 @login_required
 def profile(request):
     quotes = Quote.objects.all()
@@ -78,4 +83,10 @@ def delete_quote(request, pk):
         return redirect('users:profile')
     return render(request, 'users/delete_quote.html', {'quote': quote})
 
-
+class ResetPasswordView(SuccessMessageMixin, PasswordResetView):
+    template_name = 'users/password_reset.html'
+    email_template_name = 'users/password_reset_email.html'
+    html_email_template_name = 'users/password_reset_email.html'
+    success_url = reverse_lazy('users:password_reset_done')
+    success_message = "An email with instructions to reset your password has been sent to %(email)s."
+    subject_template_name = 'users/password_reset_subject.txt'

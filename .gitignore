@@ -6,3 +6,5 @@ csstyles
 mystaticfiles
 aarch
 .env
+postgres-data
+mystaticfiles

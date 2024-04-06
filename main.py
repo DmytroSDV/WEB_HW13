@@ -49,9 +49,7 @@ user_agent_ban_list = [r"Googlebot", r"Python-urllib"]
 
 @app.middleware("http")
 async def user_agent_ban_middleware(request: Request, call_next: Callable):
-    print(request.headers.get("Authorization"))
     user_agent = request.headers.get("user-agent")
-    print(user_agent)
     for ban_pattern in user_agent_ban_list:
         if re.search(ban_pattern, user_agent):
             return JSONResponse(
