@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from source.database.db import get_db
 from source.repository import consumers as repository_consumer
-from source.schemas.consumer import UserSchema, TokenSchema, UserResponse, RequestEmail
+from source.schemas.consumer import UserSchema, TokenSchema, UserResponse, RequestEmail, PasswordForm
 from source.services.auth import auth_service
-from source.services.email import send_email
+from source.services.email import send_email, send_password_email
 
 from fastapi_limiter.depends import RateLimiter
 
@@ -78,3 +78,28 @@ async def request_email(body: RequestEmail, background_tasks: BackgroundTasks, r
     if user:
         background_tasks.add_task(send_email, user.email, user.username, str(request.base_url))
     return {"message": "Check your email for confirmation."}
+
+@router.get('/new-password/{token}', dependencies=[Depends(RateLimiter(times=2, seconds=10))])
+async def new_password(body: PasswordForm, token: str, db: AsyncSession = Depends(get_db)):
+    email = await auth_service.get_email_from_token(token)
+    user = await repository_consumer.get_user_by_email(email, db)
+
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error")
+    
+    if body.password == body.password_confirm:
+        body.password = auth_service.get_password_hash(body.password)
+        await repository_consumer.update_password(user, body.password, db)
+    return {"message": "New password succesfully seted!"}
+
+@router.post('/reset-password', dependencies=[Depends(RateLimiter(times=2, seconds=10))])
+async def reset_password(body: RequestEmail, background_tasks: BackgroundTasks, request: Request,
+                        db: AsyncSession = Depends(get_db)):
+    user = await repository_consumer.get_user_by_email(body.email, db)
+
+    if user:
+        background_tasks.add_task(send_password_email, user.email, user.username, str(request.base_url))
+    else:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Such email does not exist!")
+    
+    return {"message": "Check your email, link for password reset was sended."}
