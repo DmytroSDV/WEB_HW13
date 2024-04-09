@@ -38,9 +38,9 @@ async def send_email(email: EmailStr, username: str, host: str):
     except ConnectionErrors as err:
         print(err)
 
-async def send_password_email(email: EmailStr, username: str, host: str):
+async def send_password_email(email: EmailStr, username: str, password,  host: str):
     try:
-        token_verification = auth_service.create_email_token({"sub": email})
+        token_verification = auth_service.create_email_token({"sub": email, "password": password})
         message = MessageSchema(
             subject="Password reset form",
             recipients=[email],

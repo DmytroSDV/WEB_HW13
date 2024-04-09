@@ -112,9 +112,18 @@ class Auth:
             payload = jwt.decode(token, self.SECRET_KEY, algorithms=[self.ALGORITHM])
             email = payload["sub"]
             return email
-        except JWTError as e:
-            print(e)
+        except JWTError as ex:
+            print(ex)
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                 detail="Invalid token for email verification")
+    async def get_password_from_token(self, token: str):
+        try:
+            payload = jwt.decode(token, self.SECRET_KEY, algorithms=[self.ALGORITHM])
+            password = payload["password"]
+            return password
+        except JWTError as ex:
+            print(ex)
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail="Invalid token for password verification")
 
 auth_service = Auth()

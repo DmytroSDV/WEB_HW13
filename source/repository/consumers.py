@@ -45,6 +45,7 @@ async def update_avatar_url(email: str, url: str | None, db: AsyncSession) -> Co
     return user
 
 
-async def update_password(user: Consumer, password: str, db: AsyncSession):
+async def update_password(email: str, password:str, db: AsyncSession) -> None:
+    user = await get_user_by_email(email, db)
     user.password = password
     await db.commit()

@@ -16,7 +16,7 @@ get_refresh_token = HTTPBearer()
 
 
 
-@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(RateLimiter(times=2, seconds=10))])
+@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def signup(body: UserSchema, bt: BackgroundTasks, request: Request, db: AsyncSession = Depends(get_db)):
     exist_user = await repository_consumer.get_user_by_email(body.email, db)
     if exist_user:
@@ -26,7 +26,7 @@ async def signup(body: UserSchema, bt: BackgroundTasks, request: Request, db: As
     bt.add_task(send_email, new_user.email, new_user.username, str(request.base_url))
     return new_user
 
-@router.post("/login",  response_model=TokenSchema, dependencies=[Depends(RateLimiter(times=2, seconds=10))])
+@router.post("/login",  response_model=TokenSchema)
 async def login(body: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     user = await repository_consumer.get_user_by_email(body.username, db)
     if user is None:
@@ -56,7 +56,7 @@ async def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(get_
     await repository_consumer.update_token(user, refresh_token, db)
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
     
-@router.get('/confirmed_email/{token}', dependencies=[Depends(RateLimiter(times=2, seconds=10))])
+@router.get('/confirmed_email/{token}')
 async def confirmed_email(token: str, db: AsyncSession = Depends(get_db)):
     email = await auth_service.get_email_from_token(token)
     user = await repository_consumer.get_user_by_email(email, db)
@@ -79,26 +79,28 @@ async def request_email(body: RequestEmail, background_tasks: BackgroundTasks, r
         background_tasks.add_task(send_email, user.email, user.username, str(request.base_url))
     return {"message": "Check your email for confirmation."}
 
-@router.get('/new-password/{token}', dependencies=[Depends(RateLimiter(times=2, seconds=10))])
-async def new_password(body: PasswordForm, token: str, db: AsyncSession = Depends(get_db)):
+@router.get('/new-password/{token}')
+async def new_password(token: str, db: AsyncSession = Depends(get_db)):
     email = await auth_service.get_email_from_token(token)
+    password = await auth_service.get_password_from_token(token)
     user = await repository_consumer.get_user_by_email(email, db)
 
     if user is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error")
-    
-    if body.password == body.password_confirm:
-        body.password = auth_service.get_password_hash(body.password)
-        await repository_consumer.update_password(user, body.password, db)
-    return {"message": "New password succesfully seted!"}
+    if password:
+        password = auth_service.get_password_hash(password)
+        await repository_consumer.update_password(email, password, db)
+    return {"message": "New password succesfully updated!"}
 
 @router.post('/reset-password', dependencies=[Depends(RateLimiter(times=2, seconds=10))])
-async def reset_password(body: RequestEmail, background_tasks: BackgroundTasks, request: Request,
+async def reset_password(body: PasswordForm, background_tasks: BackgroundTasks, request: Request,
                         db: AsyncSession = Depends(get_db)):
     user = await repository_consumer.get_user_by_email(body.email, db)
-
     if user:
-        background_tasks.add_task(send_password_email, user.email, user.username, str(request.base_url))
+        if body.password == body.password_confirm:
+            background_tasks.add_task(send_password_email, user.email, user.username, body.password, str(request.base_url))
+        else:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Passwords do not match!")
     else:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Such email does not exist!")
     
